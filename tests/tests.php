@@ -8,10 +8,9 @@ require 'helpers.php';
 echo "<pre>";
 
 test('jdb_create()', function() {
-
   jdb_create('users');
 
-  assert(file_exists('storage/users.json'));
+  assert(file_exists('storage/users.json') === true);
 });
 
 $csv = array_map('str_getcsv', file('users.csv'));
@@ -23,17 +22,19 @@ array_walk($csv, function(&$a) use ($csv) {
 array_shift($csv);
 
 test('jdb_insert()', function() use ($csv) {
+  $uids = [];
   foreach ($csv as $value) {
-    assert(!!jdb_insert('users', $value));
+    $uids[] = jdb_insert('users', $value);
   }
+  assert()
 });
 
-// test('jdb_drop()', function() {
+test('jdb_drop()', function() {
 
-//   jdb_drop('users');
+  jdb_drop('users');
 
-//   assert(!file_exists('storage/users.json'));
-// });
+  assert(!file_exists('storage/users.json'));
+});
 
 test_summary();
 
