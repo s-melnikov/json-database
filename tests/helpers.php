@@ -42,4 +42,27 @@ assert_options(ASSERT_CALLBACK, function ($script, $line, $message) {
   throw new Exception();
 });
 
+function readableSize($size) {
+  $mod = 1024;
+  $format = '%.2f%s';
+  $units = explode(' ','B Kb Mb Gb Tb');
+  for ($i = 0; $size > $mod; $i++)
+    $size /= $mod;
+  if (0 === $i)
+    $format = preg_replace('/(%.[\d]+f)/', '%d', $format);
+  return sprintf($format, round($size, 3), $units[$i]);
+}
+
+function readableTime($microtime) {
+  if ($microtime >= 1) {
+    $unit = 's';
+    $time = round($microtime, 3);
+  } else {
+    $unit = 'ms';
+    $time = round($microtime*1000);
+    $format = preg_replace('/(%.[\d]+f)/', '%d', '%.3f%s');
+  }
+  return sprintf($format, $time, $unit);
+}
+
 ?>

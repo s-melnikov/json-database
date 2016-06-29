@@ -1,157 +1,38 @@
 <?php
 
+/**
+ *
+ */
 if (!defined('DEBUG')) {
   define('DEBUG', false);
 }
 
+/**
+ *
+ */
 if (!defined('JDB_STORAGE')) {
   define('JDB_STORAGE', 'storage' . DIRECTORY_SEPARATOR);
 }
 
-function jdb_insert($name, $new_item) {
 
-  if (!is_array($new_item)) {
-    throw new InvalidArgumentException(
-      "Array expected as second argument",
-      500
-    );
-  }
-
-  $data = jdb_get_file_data($name);
-  $uid = uniqid('', true);
-
-  $new_item['_uid'] = $uid;
-  $data['items'][] = $new_item;
-
-  if (!jdb_set_file_data($name, $data)) {
-    return false;
-  }
-
-  return $uid;
-}
-
-function jdb_select($name, $where = null) {
-  $data = jdb_get_file_data($name);
-
-  if ($where == null) {
-    return $data['items'];
-  }
-
-  if (is_callable($where)) {
-    return array_filter($data['items'], $where);
-  }
-
-  if (is_string($where)) {
-    $where = ['_uid' => $where];
-  }
-
-  return array_filter($data['items'], function($item) use ($where) {
-    foreach ($where as $key => $value) {
-      if (!isset($item[$key]) || $item[$key] !== $value) {
-        return false;
-      }
-    }
-    return true;
-  });
-}
-
-function jdb_update($name, $update, $where = null) {
-
-  if (!is_array($update)) {
-    throw new InvalidArgumentException(
-      "Array expected as second argument",
-      500
-    );
-  }
-
-  $data = jdb_get_file_data($name);
-
-  $counter = 0;
-
-  if (func_num_args() === 2) {
-
-    foreach ($data['items'] as &$item) {
-      foreach ($update as $key => $val) {
-        $item[$key] = $val;
-      }
-      $counter++;
-    }
-
-  } else {
-
-    if (is_string($where)) {
-      $where = ['_uid' => $where];
-    }
-
-    foreach ($data['items'] as &$item) {
-
-      $next = false;
-
-      foreach ($where as $key => $value) {
-        if (!isset($item[$key]) || $item[$key] !== $value) {
-          $next = true;
-        }
-      }
-
-      if ($next) continue;
-
-      foreach ($update as $key => $value) {
-        $item[$key] = $value;
-      }
-
-      $counter++;
-    }
-  }
-
-  if (jdb_set_file_data($name, $data)) {
-    return $counter;
-  }
-
-  return null;
-}
-
-function jdb_delete($name, $where = null) {
-
-  $data = jdb_get_file_data($name);
-
-  if (func_num_args() === 2) {
-
-    if (is_string($where)) {
-      $where = ['_uid' => $where];
-    }
-
-    foreach ($data['items'] as $item_key => $item_value) {
-
-      $next = false;
-
-      foreach ($where as $key => $value) {
-        if (!isset($item_value[$key]) || $item_value[$key] !== $value) {
-          $next = true;
-        }
-      }
-
-      if ($next) continue;
-
-      unset($data['items'][$item_key]);
-    }
-
-    $data['items'] = array_values($data['items']);
-
-  } else {
-
-    $data['items'] = [];
-  }
-
-  return jdb_set_file_data($name, $data);
-}
-
-function jdb_exist($name) {
+/**
+ * [jdb_exists description]
+ * @param  [type] $name [description]
+ * @return [type]       [description]
+ */
+function jdb_exists($name) {
   return file_exists(JDB_STORAGE . $name . '.json');
 }
 
+
+/**
+ * [jdb_create description]
+ * @param  [type] $name [description]
+ * @return [type]       [description]
+ */
 function jdb_create($name) {
 
-  if (jdb_exist($name)) {
+  if (jdb_exists($name)) {
     throw new RuntimeException(
        "JSON DB table [{$name}] already exist.",
       500
@@ -168,9 +49,15 @@ function jdb_create($name) {
   return !!jdb_set_file_data($name, $data);
 }
 
+
+/**
+ * [jdb_drop description]
+ * @param  [type] $name [description]
+ * @return [type]       [description]
+ */
 function jdb_drop($name) {
 
-  if (!jdb_exist($name)) {
+  if (!jdb_exists($name)) {
     throw new RuntimeException(
        "JSON DB table [{$name}] not exist.",
       500
@@ -180,6 +67,12 @@ function jdb_drop($name) {
   return unlink(JDB_STORAGE . $name . '.json');
 }
 
+
+/**
+ * [jdb_get_file_data description]
+ * @param  [type] $name [description]
+ * @return [type]       [description]
+ */
 function jdb_get_file_data($name) {
 
   $file = JDB_STORAGE . $name . '.json';
@@ -205,6 +98,13 @@ function jdb_get_file_data($name) {
   return $data;
 }
 
+
+/**
+ * [jdb_set_file_data description]
+ * @param  [type] $name [description]
+ * @param  [type] $data [description]
+ * @return [type]       [description]
+ */
 function jdb_set_file_data($name, $data) {
 
   if (!is_string($name)) {
@@ -233,7 +133,10 @@ function jdb_set_file_data($name, $data) {
     return file_put_contents($file, $json);
   }
 
-  $fp = fopen($file, 'r+');
+  $attempt = 100;
+  while ($attempt-- && !($fp = fopen($file, 'r+'))) {
+    usleep(1000);
+  }
 
   if (flock($fp, LOCK_EX)) {
     ftruncate($fp, 0);
@@ -252,6 +155,14 @@ function jdb_set_file_data($name, $data) {
   return true;
 }
 
+
+/**
+ * [jdb_settings description]
+ * @param  [type] $name  [description]
+ * @param  [type] $key   [description]
+ * @param  [type] $value [description]
+ * @return [type]        [description]
+ */
 function jdb_settings($name, $key = null, $value = null) {
 
   $argc = func_num_args();
@@ -268,6 +179,190 @@ function jdb_settings($name, $key = null, $value = null) {
 
   if ($argc == 3) {
     $data['settings'][$key] = $value;
+  }
+
+  return jdb_set_file_data($name, $data);
+}
+
+
+/**
+ * [jdb_insert description]
+ * @param  [type] $name     [description]
+ * @param  [type] $new_item [description]
+ * @return [type]           [description]
+ */
+function jdb_insert($name, $new_item) {
+
+  if (!is_array($new_item)) {
+    throw new InvalidArgumentException(
+      "Array expected as second argument",
+      500
+    );
+  }
+
+  $data = jdb_get_file_data($name);
+  $uid = uniqid('', true);
+
+  $new_item['_uid'] = $uid;
+  $data['items'][] = $new_item;
+
+  if (!jdb_set_file_data($name, $data)) {
+    return false;
+  }
+
+  return $uid;
+}
+
+
+/**
+ * [jdb_select description]
+ * @param  [type] $name  [description]
+ * @param  [type] $where [description]
+ * @return [type]        [description]
+ */
+function jdb_select($name, $where = null) {
+  $data = jdb_get_file_data($name);
+
+  if ($where == null) {
+    return $data['items'];
+  }
+
+  if (is_callable($where)) {
+
+    $result = array_filter($data['items'], $where);
+
+  } else {
+
+    if (is_string($where)) {
+      $where = ['_uid' => $where];
+    }
+
+    $result = array_filter($data['items'], function($item) use ($where) {
+      foreach ($where as $key => $value) {
+        if (!isset($item[$key]) || $item[$key] !== $value) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+  return array_values($result);
+}
+
+
+/**
+ * [jdb_update description]
+ * @param  [type] $name   [description]
+ * @param  [type] $update [description]
+ * @param  [type] $where  [description]
+ * @return [type]         [description]
+ */
+function jdb_update($name, $update, $where = null) {
+
+  $data = jdb_get_file_data($name);
+
+  $counter = 0;
+
+  if (func_num_args() === 2) {
+    if (is_callable($update)) {
+      $data['items'] = array_map($update, $data['items']);
+      $counter = count($data['items']);
+    } else {
+      foreach ($data['items'] as &$item) {
+        foreach ($update as $key => $val) {
+          $item[$key] = $val;
+        }
+        $counter++;
+      }
+    }
+
+  } else {
+
+    if (is_string($where)) {
+      $where = ['_uid' => $where];
+    }
+
+    foreach ($data['items'] as &$item) {
+
+      $next = false;
+
+      foreach ($where as $key => $value) {
+        if (!isset($item[$key]) || $item[$key] !== $value) {
+          $next = true;
+        }
+      }
+
+      if ($next) continue;
+
+      foreach ($update as $key => $value) {
+        $item[$key] = $value;
+      }
+
+      $counter++;
+    }
+
+  }
+
+  if (jdb_set_file_data($name, $data)) {
+    return $counter;
+  }
+
+  return null;
+}
+
+
+/**
+ * [jdb_delete description]
+ * @param  [type] $name  [description]
+ * @param  [type] $where [description]
+ * @return [type]        [description]
+ */
+function jdb_delete($name, $where = null) {
+
+  $data = jdb_get_file_data($name);
+
+  if (func_num_args() === 2) {
+
+    if (is_callable($where)) {
+
+      $new_items = [];
+
+      foreach ($data['items'] as $item) {
+        if (!$where($item)) {
+          $new_items[] = $item;
+        }
+      }
+
+      $data['items'] = $new_items;
+
+    } else {
+
+      if (is_string($where)) {
+        $where = ['_uid' => $where];
+      }
+
+      foreach ($data['items'] as $item_key => $item_value) {
+
+        $next = false;
+
+        foreach ($where as $key => $value) {
+          if (!isset($item_value[$key]) || $item_value[$key] !== $value) {
+            $next = true;
+          }
+        }
+
+        if ($next) continue;
+
+        unset($data['items'][$item_key]);
+      }
+
+    }
+
+    $data['items'] = array_values($data['items']);
+
+  } else {
+
+    $data['items'] = [];
   }
 
   return jdb_set_file_data($name, $data);
