@@ -1,35 +1,21 @@
 <?php
 
-/**
- *
- */
+# Set true, if work in debug mode
 if (!defined('DEBUG')) {
   define('DEBUG', false);
 }
 
-/**
- *
- */
+# Path to store json files
 if (!defined('JDB_STORAGE')) {
   define('JDB_STORAGE', 'storage' . DIRECTORY_SEPARATOR);
 }
 
 
-/**
- * [jdb_exists description]
- * @param  [type] $name [description]
- * @return [type]       [description]
- */
+# Check is exists table with current name
 function jdb_exists($name) {
   return file_exists(JDB_STORAGE . $name . '.json');
 }
 
-
-/**
- * [jdb_create description]
- * @param  [type] $name [description]
- * @return [type]       [description]
- */
 function jdb_create($name) {
 
   if (jdb_exists($name)) {
@@ -49,12 +35,6 @@ function jdb_create($name) {
   return !!jdb_set_file_data($name, $data);
 }
 
-
-/**
- * [jdb_drop description]
- * @param  [type] $name [description]
- * @return [type]       [description]
- */
 function jdb_drop($name) {
 
   if (!jdb_exists($name)) {
@@ -67,12 +47,6 @@ function jdb_drop($name) {
   return unlink(JDB_STORAGE . $name . '.json');
 }
 
-
-/**
- * [jdb_get_file_data description]
- * @param  [type] $name [description]
- * @return [type]       [description]
- */
 function jdb_get_file_data($name) {
 
   $file = JDB_STORAGE . $name . '.json';
@@ -98,13 +72,6 @@ function jdb_get_file_data($name) {
   return $data;
 }
 
-
-/**
- * [jdb_set_file_data description]
- * @param  [type] $name [description]
- * @param  [type] $data [description]
- * @return [type]       [description]
- */
 function jdb_set_file_data($name, $data) {
 
   if (!is_string($name)) {
@@ -155,14 +122,6 @@ function jdb_set_file_data($name, $data) {
   return true;
 }
 
-
-/**
- * [jdb_settings description]
- * @param  [type] $name  [description]
- * @param  [type] $key   [description]
- * @param  [type] $value [description]
- * @return [type]        [description]
- */
 function jdb_settings($name, $key = null, $value = null) {
 
   $argc = func_num_args();
@@ -184,13 +143,6 @@ function jdb_settings($name, $key = null, $value = null) {
   return jdb_set_file_data($name, $data);
 }
 
-
-/**
- * [jdb_insert description]
- * @param  [type] $name     [description]
- * @param  [type] $new_item [description]
- * @return [type]           [description]
- */
 function jdb_insert($name, $new_item) {
 
   if (!is_array($new_item)) {
@@ -213,13 +165,6 @@ function jdb_insert($name, $new_item) {
   return $uid;
 }
 
-
-/**
- * [jdb_select description]
- * @param  [type] $name  [description]
- * @param  [type] $where [description]
- * @return [type]        [description]
- */
 function jdb_select($name, $where = null) {
   $data = jdb_get_file_data($name);
 
@@ -249,15 +194,14 @@ function jdb_select($name, $where = null) {
   return array_values($result);
 }
 
-
-/**
- * [jdb_update description]
- * @param  [type] $name   [description]
- * @param  [type] $update [description]
- * @param  [type] $where  [description]
- * @return [type]         [description]
- */
 function jdb_update($name, $update, $where = null) {
+
+  if (!is_array($update) && !is_callable($update)) {
+    throw new InvalidArgumentException(
+      "Array or function expected as second argument",
+      500
+    );
+  }
 
   $data = jdb_get_file_data($name);
 
@@ -310,13 +254,6 @@ function jdb_update($name, $update, $where = null) {
   return null;
 }
 
-
-/**
- * [jdb_delete description]
- * @param  [type] $name  [description]
- * @param  [type] $where [description]
- * @return [type]        [description]
- */
 function jdb_delete($name, $where = null) {
 
   $data = jdb_get_file_data($name);
